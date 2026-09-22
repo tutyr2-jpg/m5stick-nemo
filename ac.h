@@ -9,6 +9,11 @@
 
 #include <IRac.h>
 
+// Nemo's sketch defines these after the .h includes (Arduino prototype
+// generation doesn't see .h-internal call sites), so forward-declare.
+bool check_next_press();
+bool check_select_press();
+
 #define AC_STATE_MIN 16
 #define AC_STATE_MAX 30
 
