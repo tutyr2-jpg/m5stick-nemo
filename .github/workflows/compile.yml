@@ -171,6 +171,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: github_release
     needs: [compile_sketch]
+    permissions:
+      contents: write
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
 
     steps:
