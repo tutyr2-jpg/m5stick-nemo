@@ -310,7 +310,8 @@ int dh_pkts = 0;
   #include <EEPROM.h>
   #define EEPROM_SIZE 64
 #endif
-#include <IRremote.h>
+#include <IRsend.h>
+IRsend irsend(IRLED);
 #include <DNSServer.h>
 #include <WebServer.h>
 #include "applejuice.h"
@@ -1222,7 +1223,7 @@ void tvbgone_setup() {
   delay(50);  // Allow power to stabilize
   #endif
 
-  IrSender.begin(IRLED); // Initialize IR sender
+  irsend.begin(); // Initialize IR sender (IRremoteESP8266)
   // Hack: Set IRLED high to turn it off after setup. Otherwise it stays on (active low)
   digitalWrite(IRLED, M5LED_OFF);
 
@@ -1333,7 +1334,7 @@ void sendAllCodes() {
       rawData[k * 2] = offtime * 10;
       rawData[(k * 2) + 1] = ontime * 10;
     }
-    IrSender.sendRaw(rawData, (numpairs * 2), freq);
+    irsend.sendRaw(rawData, (numpairs * 2), freq);
     digitalWrite(IRLED, M5LED_OFF);
     bitsleft_r = 0;
     delay_ten_us(20500);

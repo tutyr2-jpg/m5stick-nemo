@@ -3,36 +3,9 @@
 // Interactive power/temp/mode/fan control + B-Gone brute-force OFF.
 // Brands: Samsung, LG, Sharp, Panasonic, Mitsubishi, Daikin, Toshiba, Philips.
 
-// IRremoteESP8266's headers collide with Arduino-IRremote (ArminJo), which
-// Nemo already includes for TV-B-Gone: ArminJo defines DECODE_* as empty
-// macros, which breaks IRremoteESP8266's `#if DECODE_*` checks. Nemo only
-// uses IrSender (TX) from ArminJo, so undefining the DECODE_* macros is safe.
-#undef DECODE_HASH
-#undef DECODE_NEC
-#undef DECODE_SHERWOOD
-#undef DECODE_RC5
-#undef DECODE_RC6
-#undef DECODE_RCMM
-#undef DECODE_SONY
-#undef DECODE_PANASONIC
-#undef DECODE_JVC
-#undef DECODE_SAMSUNG
-#undef DECODE_WHYNTER
-#undef DECODE_LG
-#undef DECODE_SANYO
-#undef DECODE_MITSUBISHI
-#undef DECODE_DISH
-#undef DECODE_SHARP
-#undef DECODE_DENON
-#undef DECODE_KASEIKYO
-#undef DECODE_BOSEWAVE
-#undef DECODE_LEGO_PF
-#undef DECODE_MAGIQUEST
-#undef DECODE_FAST
-#undef DECODE_DISTANCE_WIDTH
-#undef DECODE_MARANTZ
-#undef DECODE_OPENLASIR
-#undef DECODE_BEO
+// IRremoteESP8266 IRac port from Bruce. TV-B-Gone was migrated from
+// Arduino-IRremote to IRremoteESP8266's IRsend to avoid a decode_type_t
+// enum collision between the two libraries.
 
 #include <IRac.h>
 
