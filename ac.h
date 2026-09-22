@@ -29,7 +29,7 @@ const ACBrandEntry ac_brands[] = {
   { "Mitsubishi", decode_type_t::MITSUBISHI_AC },
   { "Daikin",     decode_type_t::DAIKIN },
   { "Toshiba",    decode_type_t::TOSHIBA_AC },
-  { "Philips",    decode_type_t::PHILCO_AC },
+  { "Gree",       decode_type_t::GREE },
 };
 const int ac_brands_count = sizeof(ac_brands) / sizeof(ac_brands[0]);
 
