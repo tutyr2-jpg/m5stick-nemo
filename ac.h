@@ -46,33 +46,33 @@ void ac_init() {
   if (!ac_irac) ac_irac = new IRac(IRLED);
 }
 
-void ac_set_state_by_brand(std_ac_state_t* st, decode_type_t proto) {
+void ac_set_state_by_brand(stdAc::state_t* st, decode_type_t proto) {
   // only safe mode/temp defaults; brand already picked
   st->protocol = proto;
   st->power = ac_power;
   st->celsius = true;
   st->degrees = ac_temp;
-  st->mode = std_mode_t::kAuto;
   switch (ac_mode) {
-    case 0: st->mode = std_mode_t::kAuto; break;
-    case 1: st->mode = std_mode_t::kCool; break;
-    case 2: st->mode = std_mode_t::kDry;  break;
-    case 3: st->mode = std_mode_t::kFan;  break;
-    case 4: st->mode = std_mode_t::kHeat; break;
+    case 0: st->mode = stdAc::opmode_t::kAuto; break;
+    case 1: st->mode = stdAc::opmode_t::kCool; break;
+    case 2: st->mode = stdAc::opmode_t::kDry;  break;
+    case 3: st->mode = stdAc::opmode_t::kFan;  break;
+    case 4: st->mode = stdAc::opmode_t::kHeat; break;
   }
   switch (ac_fan) {
-    case 0: st->fanspeed = std_fanspeed_t::kAuto; break;
-    case 1: st->fanspeed = std_fanspeed_t::kMin;  break;
-    case 2: st->fanspeed = std_fanspeed_t::kMedium; break;
-    case 3: st->fanspeed = std_fanspeed_t::kMax;  break;
+    case 0: st->fanspeed = stdAc::fanspeed_t::kAuto; break;
+    case 1: st->fanspeed = stdAc::fanspeed_t::kMin;  break;
+    case 2: st->fanspeed = stdAc::fanspeed_t::kMedium; break;
+    case 3: st->fanspeed = stdAc::fanspeed_t::kMax;  break;
   }
 }
 
 void ac_send_current() {
   ac_init();
-  std_ac_state_t st;
+  stdAc::state_t st;
+  IRac::initState(&st);
   ac_set_state_by_brand(&st, ac_brands[ac_brand_idx].protocol);
-  ac_irac->send(&st);
+  ac_irac->sendAc(st);
   digitalWrite(IRLED, M5LED_OFF);
 }
 
@@ -144,14 +144,15 @@ void ac_bgone() {
   for (uint8_t i = 0; i < ac_brands_count; i++) {
     DISP.print(ac_brands[i].name);
     DISP.println(" OFF");
-    std_ac_state_t st;
+    stdAc::state_t st;
+    IRac::initState(&st);
     st.protocol = ac_brands[i].protocol;
     st.power = false;
     st.celsius = true;
     st.degrees = 24;
-    st.mode = std_mode_t::kAuto;
-    st.fanspeed = std_fanspeed_t::kAuto;
-    ac_irac->send(&st);
+    st.mode = stdAc::opmode_t::kAuto;
+    st.fanspeed = stdAc::fanspeed_t::kAuto;
+    ac_irac->sendAc(st);
     digitalWrite(IRLED, M5LED_OFF);
     delay(300);
   }
