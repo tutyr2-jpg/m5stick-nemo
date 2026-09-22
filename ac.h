@@ -1,11 +1,7 @@
 // AC-B-Gone + Air Conditioner IR control
 // Ported from Bruce (IRremoteESP8266 IRac) to Nemo's single-file sketch style.
-// Interactive power/temp/mode/fan control + B-Gone brute-force OFF.
-// Brands: Samsung, LG, Sharp, Panasonic, Mitsubishi, Daikin, Toshiba, Philips.
-
-// IRremoteESP8266 IRac port from Bruce. TV-B-Gone was migrated from
-// Arduino-IRremote to IRremoteESP8266's IRsend to avoid a decode_type_t
-// enum collision between the two libraries.
+// Interactive power/temp/mode/fan control + FULL BLAST + B-Gone brute-force OFF.
+// Brands: Samsung, LG, Sharp, Panasonic, Mitsubishi, Daikin, Toshiba, Gree.
 
 #include <IRac.h>
 
@@ -17,7 +13,6 @@ bool check_select_press();
 #define AC_STATE_MIN 16
 #define AC_STATE_MAX 30
 
-// AC modes list order must match IRac decode mapping
 const char* ac_modes[] = { "Auto", "Cool", "Dry", "Fan", "Heat" };
 const char* ac_fans[] = { "Auto", "Min", "Med", "Max" };
 
@@ -51,8 +46,20 @@ void ac_init() {
   if (!ac_irac) ac_irac = new IRac(IRLED);
 }
 
+// Wait until all buttons are released so the press that opened a
+// screen isn't immediately re-read as input inside that screen.
+void ac_wait_release() {
+#if defined(KB)
+  delay(300);  // keyboard path debounces in M5Cardputer.update()
+#else
+  while (digitalRead(M5_BUTTON_HOME) == LOW || digitalRead(M5_BUTTON_RST) == LOW) {
+    delay(20);
+  }
+  delay(50);
+#endif
+}
+
 void ac_set_state_by_brand(stdAc::state_t* st, decode_type_t proto) {
-  // only safe mode/temp defaults; brand already picked
   st->protocol = proto;
   st->power = ac_power;
   st->celsius = true;
@@ -65,10 +72,10 @@ void ac_set_state_by_brand(stdAc::state_t* st, decode_type_t proto) {
     case 4: st->mode = stdAc::opmode_t::kHeat; break;
   }
   switch (ac_fan) {
-    case 0: st->fanspeed = stdAc::fanspeed_t::kAuto; break;
-    case 1: st->fanspeed = stdAc::fanspeed_t::kMin;  break;
+    case 0: st->fanspeed = stdAc::fanspeed_t::kAuto;   break;
+    case 1: st->fanspeed = stdAc::fanspeed_t::kMin;    break;
     case 2: st->fanspeed = stdAc::fanspeed_t::kMedium; break;
-    case 3: st->fanspeed = stdAc::fanspeed_t::kMax;  break;
+    case 3: st->fanspeed = stdAc::fanspeed_t::kMax;    break;
   }
 }
 
@@ -81,29 +88,23 @@ void ac_send_current() {
   digitalWrite(IRLED, M5LED_OFF);
 }
 
-// ---- drawing ----
-void ac_draw() {
-  DISP.fillScreen(BGCOLOR);
-  DISP.setTextSize(SMALL_TEXT);
-  DISP.setCursor(0, 0);
-  DISP.println("A/C Remote");
-  DISP.setTextSize(TINY_TEXT);
-  DISP.println(" ");
-
-  DISP.print("Marca: "); DISP.println(ac_brands[ac_brand_idx].name);
-  DISP.print("Ligado: "); DISP.println(ac_power ? "ON" : "OFF");
-  DISP.print("Temp: "); DISP.print(ac_temp); DISP.println("C");
-  DISP.print("Modo: "); DISP.println(ac_modes[ac_mode]);
-  DISP.print("Fan:  "); DISP.println(ac_fans[ac_fan]);
-  DISP.println(" ");
-  DISP.println("[OK] Enviar  [MENU] ajusta");
+void ac_send_state(stdAc::state_t* st) {
+  ac_init();
+  ac_irac->sendAc(*st);
+  digitalWrite(IRLED, M5LED_OFF);
 }
 
-// ---- menu handling ----
-// The MENU-driven selector entry in the main menu jumps to command 30.
-// This loop alternates: next cycles fields, select edits/sends.
+// FULL BLAST: power ON, Cool, lowest temp, max fan
+void ac_full_blast() {
+  ac_power = true;
+  ac_mode = 1;              // Cool
+  ac_temp = AC_STATE_MIN;   // 16C
+  ac_fan = 3;               // Max
+  ac_send_current();
+}
 
-enum ACField { AC_BRAND, AC_POWER, AC_TEMP, AC_MODE, AC_FAN, AC_SEND, AC_FIELDS };
+// ---- A/C Remote menu ----
+enum ACField { AC_BRAND, AC_POWER, AC_TEMP, AC_MODE, AC_FAN, AC_SEND, AC_BLAST, AC_FIELDS };
 static uint8_t ac_field = AC_BRAND;
 
 void ac_menu_draw() {
@@ -113,19 +114,19 @@ void ac_menu_draw() {
   DISP.println("A/C Remote");
   DISP.setTextSize(TINY_TEXT);
   const char* fields[] = {
-    "Marca", "Ligado", "Temp", "Modo", "Fan", ">> ENVIAR <<"
-  };
-  const char* values[] = {
-    ac_brands[ac_brand_idx].name,
-    ac_power ? "ON" : "OFF",
-    "",
-    ac_modes[ac_mode],
-    ac_fans[ac_fan],
-    ""
+    "Marca", "Ligado", "Temp", "Modo", "Fan", ">> ENVIAR <<", "!! FULL BLAST !!"
   };
   char tempbuf[8];
   snprintf(tempbuf, sizeof(tempbuf), "%dC", ac_temp);
-  values[2] = tempbuf;
+  const char* values[] = {
+    ac_brands[ac_brand_idx].name,
+    ac_power ? "ON" : "OFF",
+    tempbuf,
+    ac_modes[ac_mode],
+    ac_fans[ac_fan],
+    "",
+    ""
+  };
 
   for (uint8_t i = 0; i < AC_FIELDS; i++) {
     if (i == ac_field) DISP.setTextColor(TFT_GREENYELLOW, BGCOLOR);
@@ -137,45 +138,11 @@ void ac_menu_draw() {
   DISP.setTextColor(FGCOLOR, BGCOLOR);
 }
 
-void ac_bgone() {
-  // Brute-force OFF across brands
-  ac_init();
-  DISP.fillScreen(BGCOLOR);
-  DISP.setTextSize(SMALL_TEXT);
-  DISP.setCursor(0, 0);
-  DISP.println("AC-B-Gone");
-  DISP.setTextSize(TINY_TEXT);
-  DISP.println("Enviando OFF em todas as marcas...");
-  for (uint8_t i = 0; i < ac_brands_count; i++) {
-    DISP.print(ac_brands[i].name);
-    DISP.println(" OFF");
-    stdAc::state_t st;
-    IRac::initState(&st);
-    st.protocol = ac_brands[i].protocol;
-    st.power = false;
-    st.celsius = true;
-    st.degrees = 24;
-    st.mode = stdAc::opmode_t::kAuto;
-    st.fanspeed = stdAc::fanspeed_t::kAuto;
-    ac_irac->sendAc(st);
-    digitalWrite(IRLED, M5LED_OFF);
-    delay(300);
-  }
-  DISP.println("Feito. [OK] voltar.");
-  while (true) {
-    if (check_select_press()) {
-      rstOverride = false;
-      isSwitching = true;
-      current_proc = 1;
-      return;
-    }
-    delay(50);
-  }
-}
-
 void ac_setup() {
+  rstOverride = true;   // side button is navigation here, not "back to menu"
   ac_field = AC_BRAND;
   ac_menu_draw();
+  ac_wait_release();
 }
 
 void ac_loop() {
@@ -204,14 +171,74 @@ void ac_loop() {
         break;
       case AC_SEND:
         ac_send_current();
-        DISP.fillScreen(BGCOLOR);
-        DISP.setTextSize(SMALL_TEXT);
-        DISP.setCursor(0, 0);
-        DISP.println("Enviado!");
-        delay(400);
         break;
+      case AC_BLAST:
+        ac_full_blast();
+        break;
+    }
+    if (ac_field == AC_SEND || ac_field == AC_BLAST) {
+      DISP.fillScreen(BGCOLOR);
+      DISP.setTextSize(SMALL_TEXT);
+      DISP.setCursor(0, 0);
+      DISP.println("Enviado!");
+      delay(400);
     }
     ac_menu_draw();
     delay(150);
+  }
+}
+
+// ---- AC-B-Gone: non-blocking state machine ----
+// setup draws the screen; loop sends one brand per tick so the UI
+// (and the global menu-exit button) stays responsive the whole time.
+static uint8_t  ac_bg_idx = 0;
+static bool     ac_bg_done = false;
+static uint32_t ac_bg_last = 0;
+
+void ac_bgone_setup() {
+  rstOverride = true;
+  ac_bg_idx = 0;
+  ac_bg_done = false;
+  ac_bg_last = 0;
+  DISP.fillScreen(BGCOLOR);
+  DISP.setTextSize(SMALL_TEXT);
+  DISP.setCursor(0, 0);
+  DISP.println("AC-B-Gone");
+  DISP.setTextSize(TINY_TEXT);
+  DISP.println("Enviando OFF em");
+  DISP.println("todas as marcas...");
+  DISP.println(" ");
+  ac_wait_release();
+}
+
+void ac_bgone_loop() {
+  if (!ac_bg_done) {
+    if (millis() - ac_bg_last > 400) {
+      ac_bg_last = millis();
+      DISP.print(ac_brands[ac_bg_idx].name);
+      DISP.println(" OFF");
+      stdAc::state_t st;
+      IRac::initState(&st);
+      st.protocol = ac_brands[ac_bg_idx].protocol;
+      st.power = false;
+      st.celsius = true;
+      st.degrees = 24;
+      st.mode = stdAc::opmode_t::kAuto;
+      st.fanspeed = stdAc::fanspeed_t::kAuto;
+      ac_send_state(&st);
+      ac_bg_idx++;
+      if (ac_bg_idx >= ac_brands_count) {
+        ac_bg_done = true;
+        DISP.println(" ");
+        DISP.println("Feito. [OK] voltar.");
+      }
+    }
+    return;
+  }
+  // done: front button exits (power/menu button exits via check_menu_press)
+  if (check_select_press()) {
+    rstOverride = false;
+    isSwitching = true;
+    current_proc = 1;
   }
 }
