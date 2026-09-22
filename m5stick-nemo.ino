@@ -245,6 +245,8 @@ uint16_t FGCOLOR=0xFFF1; // placeholder
 // 24 - Deauth Hunter
 // 25 - BLE Hunter
 // 26 - PineAP Hunter
+// 32 - AC Remote (IRac)
+// 33 - AC-B-Gone
 // 27 - BadUSB Hunter (CARDPUTER only)
 // 29 - BLE Hunter RSSI Setting
 // 30 - Deauth Hunter RSSI Setting
@@ -316,6 +318,7 @@ int dh_pkts = 0;
 #include "wifispam.h"
 #include "sd.h"
 #include "portal.h"
+#include "ac.h"
 #include "NEMOMatrix.h"
 #include "songs.h"
 #include "localization.h"
@@ -562,6 +565,8 @@ MENU mmenu[] = {
   { TXT_CLOCK, 0},
 #endif
   { "TV-B-Gone", 13}, // We jump to the region menu first
+  { "A/C", 32},
+  { "AC-B-Gone", 33},
   { "Bluetooth", 16},
   { "WiFi", 12},
 #if defined(CARDPUTER)
@@ -2488,6 +2493,8 @@ ProcessHandler processes[] = {
   {24, deauth_hunter_setup, deauth_hunter_loop, "Deauth Hunter"},
   {25, ble_hunter_setup, ble_hunter_loop, "BLE Hunter"},
   {26, pineap_hunter_setup, pineap_hunter_loop, "PineAP Hunter"},
+  {32, ac_setup, ac_loop, "AC Remote"},
+  {33, ac_bgone, ac_loop, "AC-B-Gone"},
 #if defined(CARDPUTER)
   {27, badusb_hunter_setup, badusb_hunter_loop, "BadUSB Hunter"},
 #endif
